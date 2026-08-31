@@ -16,7 +16,6 @@ class ScannerAgent:
     async def run(self, state: AgentState) -> AgentState:
         logger.info("Scanner Agent: Initiating market sweep...")
         
-        # 1. Fetch real-time context via Alpaca MCP Server
         mcp_context = await fetch_market_news_via_mcp("SPY")
         
         prompt = f"""
@@ -44,27 +43,20 @@ class ScannerAgent:
               "volume_zscore": 3.4,
               "proposed_strike": 585,
               "rationale": "Description here"
-            }},
-            {{
-              "symbol": "NVDA",
-              "expiration": "2026-09-04",
-              "signal_type": "high_iv_rank",
-              "iv_rank": 92,
-              "volume_zscore": 4.1,
-              "proposed_strike": 140,
-              "rationale": "Extreme call skew and high IV rank."
             }}
           ]
         }}
         """
         
         result_text = await run_llm_inference(prompt)
+        logger.info("Scanner Agent: LLM response received, length=%d", len(result_text))
         
         try:
-            raw_candidates = json.loads(result_text)["candidates"]
+            parsed = json.loads(result_text)
+            raw_candidates = parsed.get("candidates", [])
+            logger.info("Scanner Agent: Parsed %d candidates", len(raw_candidates))
             filtered_candidates = []
             
-            # Fetch earnings dates from MongoDB if database is initialized
             earnings_map = {}
             if db.db is not None:
                 cursor = db.db.earnings_calendar.find({})
@@ -74,7 +66,7 @@ class ScannerAgent:
             cycle_time = state.get("timestamp", datetime.utcnow())
 
             for cand in raw_candidates:
-                symbol = cand["symbol"]
+                symbol = cand.get("symbol", "")
                 earnings_date_str = earnings_map.get(symbol)
                 
                 if earnings_date_str:
@@ -83,13 +75,12 @@ class ScannerAgent:
                         diff = earnings_date - cycle_time
                         days_diff = diff.days
                         
-                        # Blackout rule: 7 days before earnings (inclusive)
                         if 0 <= days_diff <= 7:
                             state["decision_log"].append({
                                 "timestamp": datetime.utcnow(),
                                 "agent": "scanner",
                                 "status": "info",
-                                "message": f"Skipped {symbol}. Earnings announcement on {earnings_date_str} ({days_diff} days away). In earnings blackout period."
+                                "message": f"Skipped {symbol}. Earnings on {earnings_date_str} ({days_diff} days away)."
                             })
                             continue
                     except Exception as err:
@@ -99,7 +90,6 @@ class ScannerAgent:
 
             state["candidates"] = filtered_candidates
             
-            # Log to audit trail
             if db.db is not None:
                 user_id_obj = ObjectId(state["user_id"]) if ObjectId.is_valid(state["user_id"]) else ObjectId()
                 await db.db.audit_trail.insert_one({
@@ -117,9 +107,10 @@ class ScannerAgent:
                 "agent": "scanner",
                 "status": "success",
                 "candidates_found": len(filtered_candidates),
-                "output": result_text
+                "output": result_text[:500]
             })
         except Exception as e:
+            logger.error("Scanner Agent: Failed to parse LLM output: %s", e)
             state["candidates"] = []
             if db.db is not None:
                 user_id_obj = ObjectId(state["user_id"]) if ObjectId.is_valid(state["user_id"]) else ObjectId()
@@ -137,7 +128,7 @@ class ScannerAgent:
                 "agent": "scanner",
                 "status": "failed",
                 "error": str(e),
-                "output": result_text
+                "output": result_text[:500] if result_text else ""
             })
             
         return state
