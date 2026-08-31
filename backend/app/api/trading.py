@@ -164,22 +164,22 @@ async def trigger_trading_cycle_demo(
         audit_doc = {
             "user_id": user_id,
             "timestamp": datetime.utcnow(),
-            "executed_count": len(final_state["executed_orders"]),
-            "vetoed_count": len(final_state["rejected_trades"]),
-            "decision_log": final_state["decision_log"],
-            "lessons_learned": final_state["lessons_learned"]
+            "executed_count": len(final_state.get("executed_orders", [])),
+            "vetoed_count": len(final_state.get("rejected_trades", [])),
+            "decision_log": final_state.get("decision_log", []),
+            "lessons_learned": final_state.get("lessons_learned", [])
         }
         await db_conn.decision_logs.insert_one(audit_doc)
 
         return {
             "status": "completed",
             "final_state": {
-                "candidates": final_state["candidates"],
-                "proposed_trades": final_state["proposed_trades"],
-                "approved_trades": final_state["approved_trades"],
-                "rejected_trades": final_state["rejected_trades"],
-                "executed_orders": final_state["executed_orders"],
-                "decision_log": final_state["decision_log"]
+                "candidates": final_state.get("candidates", []),
+                "proposed_trades": final_state.get("proposed_trades", []),
+                "approved_trades": final_state.get("approved_trades", []),
+                "rejected_trades": final_state.get("rejected_trades", []),
+                "executed_orders": final_state.get("executed_orders", []),
+                "decision_log": final_state.get("decision_log", [])
             }
         }
     except Exception as e:
