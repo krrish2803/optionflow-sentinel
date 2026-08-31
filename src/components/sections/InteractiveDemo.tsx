@@ -6,6 +6,7 @@ import { Badge } from '../ui/Badge';
 import { PayoffChart } from '../ui/PayoffChart';
 import { TerminalLog } from '../ui/TerminalLog';
 import { playTradeSound } from '../../utils/audio';
+import { API_BASE } from '../../config';
 
 type TickerOption = 'SPY' | 'NVDA' | 'TSLA' | 'QQQ';
 
@@ -104,7 +105,7 @@ export const InteractiveDemo: React.FC = () => {
 
     try {
       // Trigger the real 5-agent LangGraph workflow
-      const response = await fetch('http://localhost:8000/api/trading/run-cycle-demo', {
+      const response = await fetch('API_BASE/api/trading/run-cycle-demo', {
         method: 'POST',
       });
       const data = await response.json();

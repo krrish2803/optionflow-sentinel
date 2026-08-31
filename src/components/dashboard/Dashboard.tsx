@@ -6,6 +6,7 @@ import {
 import { 
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend 
 } from 'recharts';
+import { API_BASE } from '../../config';
 
 
 
@@ -44,7 +45,7 @@ export const Dashboard: React.FC<{ onBackHome: () => void }> = ({ onBackHome }) 
 
         // Fetch live Alpaca account data
         try {
-            const liveAccountRes = await fetch("http://localhost:8000/api/trading/live-account", { headers });
+            const liveAccountRes = await fetch("API_BASE/api/trading/live-account", { headers });
             if (liveAccountRes.ok) {
                 const account = await liveAccountRes.json();
                 fetchedEquity = account.equity;
@@ -55,7 +56,7 @@ export const Dashboard: React.FC<{ onBackHome: () => void }> = ({ onBackHome }) 
 
         // Fetch live Alpaca positions
         try {
-            const livePosRes = await fetch("http://localhost:8000/api/trading/live-positions", { headers });
+            const livePosRes = await fetch("API_BASE/api/trading/live-positions", { headers });
             if (livePosRes.ok) {
                 const positions = await livePosRes.json();
                 fetchedPositions = positions;
@@ -65,7 +66,7 @@ export const Dashboard: React.FC<{ onBackHome: () => void }> = ({ onBackHome }) 
 
         // Fetch live market clock
         try {
-            const clockRes = await fetch("http://localhost:8000/api/trading/live-clock", { headers });
+            const clockRes = await fetch("API_BASE/api/trading/live-clock", { headers });
             if (clockRes.ok) {
                 const clock = await clockRes.json();
                 setMarketOpen(clock.is_open);
@@ -76,18 +77,18 @@ export const Dashboard: React.FC<{ onBackHome: () => void }> = ({ onBackHome }) 
 
         // Fetch live orders
         try {
-            const ordersRes = await fetch("http://localhost:8000/api/trading/live-orders", { headers });
+            const ordersRes = await fetch("API_BASE/api/trading/live-orders", { headers });
             if (ordersRes.ok) {
                 setLiveOrders(await ordersRes.json());
             }
         } catch {}
 
         // Fetch closed positions from DB
-        const closedPosRes = await fetch("http://localhost:8000/api/trading/closed-positions", { headers });
+        const closedPosRes = await fetch("API_BASE/api/trading/closed-positions", { headers });
         if (closedPosRes.ok) setClosedPositions(await closedPosRes.json());
 
         // Fetch dashboard metrics (win rate, chart)
-        const metricsRes = await fetch("http://localhost:8000/api/trading/dashboard-metrics", { headers });
+        const metricsRes = await fetch("API_BASE/api/trading/dashboard-metrics", { headers });
         if (metricsRes.ok) {
             const metrics = await metricsRes.json();
             setStartingEquity(metrics.startingEquity);
@@ -96,7 +97,7 @@ export const Dashboard: React.FC<{ onBackHome: () => void }> = ({ onBackHome }) 
         }
 
         // Fetch audit trail
-        const auditRes = await fetch("http://localhost:8000/api/trading/audit-trail", { headers });
+        const auditRes = await fetch("API_BASE/api/trading/audit-trail", { headers });
         if (auditRes.ok) {
             const auditData = await auditRes.json();
             setAuditTrail(auditData.logs || []);
@@ -104,7 +105,7 @@ export const Dashboard: React.FC<{ onBackHome: () => void }> = ({ onBackHome }) 
 
         // Fetch decision logs
         try {
-            const decisionRes = await fetch("http://localhost:8000/api/trading/decision-logs", { headers });
+            const decisionRes = await fetch("API_BASE/api/trading/decision-logs", { headers });
             if (decisionRes.ok) {
                 const decisionData = await decisionRes.json();
                 setDecisionLogs(decisionData.logs || decisionData || []);
@@ -113,7 +114,7 @@ export const Dashboard: React.FC<{ onBackHome: () => void }> = ({ onBackHome }) 
 
         // Fetch reflections & strategy weights
         try {
-            const reflRes = await fetch("http://localhost:8000/api/trading/reflections/summary", { headers });
+            const reflRes = await fetch("API_BASE/api/trading/reflections/summary", { headers });
             if (reflRes.ok) {
                 const reflData = await reflRes.json();
                 setReflections(reflData.reflection || null);
@@ -163,7 +164,7 @@ export const Dashboard: React.FC<{ onBackHome: () => void }> = ({ onBackHome }) 
 
   const handleRegister = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/auth/register', {
+      const response = await fetch('API_BASE/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -188,7 +189,7 @@ export const Dashboard: React.FC<{ onBackHome: () => void }> = ({ onBackHome }) 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:8000/api/auth/login', {
+      const response = await fetch('API_BASE/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -226,19 +227,19 @@ export const Dashboard: React.FC<{ onBackHome: () => void }> = ({ onBackHome }) 
       let orders: any[] = [];
 
       try {
-        const posRes = await fetch("http://localhost:8000/api/trading/live-positions", { headers });
+        const posRes = await fetch("API_BASE/api/trading/live-positions", { headers });
         if (posRes.ok) positions = await posRes.json();
       } catch {}
       try {
-        const accRes = await fetch("http://localhost:8000/api/trading/live-account", { headers });
+        const accRes = await fetch("API_BASE/api/trading/live-account", { headers });
         if (accRes.ok) account = await accRes.json();
       } catch {}
       try {
-        const clockRes = await fetch("http://localhost:8000/api/trading/live-clock", { headers });
+        const clockRes = await fetch("API_BASE/api/trading/live-clock", { headers });
         if (clockRes.ok) clock = await clockRes.json();
       } catch {}
       try {
-        const ordRes = await fetch("http://localhost:8000/api/trading/live-orders", { headers });
+        const ordRes = await fetch("API_BASE/api/trading/live-orders", { headers });
         if (ordRes.ok) orders = await ordRes.json();
       } catch {}
 
