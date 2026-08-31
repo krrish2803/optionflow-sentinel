@@ -74,11 +74,18 @@ class TradingOrchestrator:
                 return {
                     "status": "skipped",
                     "reason": "Market is closed.",
-                    "candidates_scanned": 0,
-                    "proposed_strategies": 0,
-                    "approved_risk_checks": 0,
+                    "candidates": [],
+                    "proposed_trades": [],
+                    "approved_trades": [],
+                    "rejected_trades": [],
                     "executed_orders": [],
                     "lessons_learned": [],
+                    "decision_log": [{
+                        "timestamp": datetime.utcnow(),
+                        "agent": "system",
+                        "status": "info",
+                        "message": "Trading cycle skipped because markets are closed."
+                    }],
                     "reflection_notes": "Trading cycle bypassed because markets are closed."
                 }
         except Exception as e:
