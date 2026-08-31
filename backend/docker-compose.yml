@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: optionflow-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:7.0
+    container_name: optionflow-redis
+    ports:
+      - "6379:6379"
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: optionflow-fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - REDIS_URL=redis://redis:6379/0
+      - ALPACA_API_KEY=${ALPACA_API_KEY}
+      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - USE_GPU=true
+      - GPU_DEVICE=0
+    depends_on:
+      - mongodb
+      - redis
+    # Pass through NVIDIA GPU for local hardware acceleration (if vLLM or CUDA is enabled)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: optionflow-celery
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - mongodb
+      - redis
+
+volumes:
+  mongodb_data:
