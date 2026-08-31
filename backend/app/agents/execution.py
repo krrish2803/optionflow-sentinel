@@ -1,10 +1,15 @@
 import logging
 from datetime import datetime
 from bson import ObjectId
-from alpaca.trading.enums import OrderSide, TimeInForce
 from app.agents.state import AgentState
 from app.core.database import db
 from app.core.alpaca import get_alpaca_client, place_limit_order
+
+try:
+    from alpaca.trading.enums import OrderSide, TimeInForce
+except ImportError:
+    OrderSide = None
+    TimeInForce = None
 
 # ---------------------------------------------------------------------------
 # MCP client import (graceful degradation)

@@ -117,70 +117,86 @@ async def trigger_trading_cycle_demo(
     db_conn: AsyncIOMotorDatabase = Depends(get_db)
 ):
     """Bypasses JWT auth to run a mock user demo cycle for the interactive landing page sandboxes."""
-    demo_user = await db_conn.users.find_one({"email": "demo-user@quant.com"})
-    if not demo_user:
-        user_doc = {
-            "email": "demo-user@quant.com",
-            "preferences": {
-                "max_risk_per_trade": 0.02,
-                "portfolio_heat_limit": 0.50,
-                "max_trade_delta": 0.30,
-                "max_trade_gamma": 0.15,
-                "max_trade_vega": 0.25,
-                "min_trade_theta": 0.05,
-                "max_portfolio_delta": 0.50,
-                "max_portfolio_gamma": 0.30,
-                "max_portfolio_vega": 0.40
+    try:
+        demo_user = await db_conn.users.find_one({"email": "demo-user@quant.com"})
+        if not demo_user:
+            user_doc = {
+                "email": "demo-user@quant.com",
+                "preferences": {
+                    "max_risk_per_trade": 0.02,
+                    "portfolio_heat_limit": 0.50,
+                    "max_trade_delta": 0.30,
+                    "max_trade_gamma": 0.15,
+                    "max_trade_vega": 0.25,
+                    "min_trade_theta": 0.05,
+                    "max_portfolio_delta": 0.50,
+                    "max_portfolio_gamma": 0.30,
+                    "max_portfolio_vega": 0.40
+                }
+            }
+            res = await db_conn.users.insert_one(user_doc)
+            user_id = res.inserted_id
+        else:
+            user_id = demo_user["_id"]
+
+        account = await db_conn.trading_accounts.find_one({
+            "user_id": user_id,
+            "status": "active"
+        })
+        if not account:
+            account_doc = {
+                "user_id": user_id,
+                "account_id": "sim-demo-account",
+                "account_name": "Demo Paper Account",
+                "status": "active"
+            }
+            res = await db_conn.trading_accounts.insert_one(account_doc)
+            account_id = res.inserted_id
+        else:
+            account_id = account["_id"]
+
+        orchestrator = TradingOrchestrator()
+        final_state = await orchestrator.run_trading_cycle(
+            user_id=str(user_id),
+            trading_account_id=str(account_id)
+        )
+
+        audit_doc = {
+            "user_id": user_id,
+            "timestamp": datetime.utcnow(),
+            "executed_count": len(final_state["executed_orders"]),
+            "vetoed_count": len(final_state["rejected_trades"]),
+            "decision_log": final_state["decision_log"],
+            "lessons_learned": final_state["lessons_learned"]
+        }
+        await db_conn.decision_logs.insert_one(audit_doc)
+
+        return {
+            "status": "completed",
+            "final_state": {
+                "candidates": final_state["candidates"],
+                "proposed_trades": final_state["proposed_trades"],
+                "approved_trades": final_state["approved_trades"],
+                "rejected_trades": final_state["rejected_trades"],
+                "executed_orders": final_state["executed_orders"],
+                "decision_log": final_state["decision_log"]
             }
         }
-        res = await db_conn.users.insert_one(user_doc)
-        user_id = res.inserted_id
-    else:
-        user_id = demo_user["_id"]
-
-    account = await db_conn.trading_accounts.find_one({
-        "user_id": user_id,
-        "status": "active"
-    })
-    if not account:
-        account_doc = {
-            "user_id": user_id,
-            "account_id": "sim-demo-account",
-            "account_name": "Demo Paper Account",
-            "status": "active"
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("Demo cycle failed")
+        return {
+            "status": "error",
+            "detail": str(e),
+            "final_state": {
+                "candidates": [],
+                "proposed_trades": [],
+                "approved_trades": [],
+                "rejected_trades": [],
+                "executed_orders": [],
+                "decision_log": []
+            }
         }
-        res = await db_conn.trading_accounts.insert_one(account_doc)
-        account_id = res.inserted_id
-    else:
-        account_id = account["_id"]
-
-    orchestrator = TradingOrchestrator()
-    final_state = await orchestrator.run_trading_cycle(
-        user_id=str(user_id),
-        trading_account_id=str(account_id)
-    )
-
-    audit_doc = {
-        "user_id": user_id,
-        "timestamp": datetime.utcnow(),
-        "executed_count": len(final_state["executed_orders"]),
-        "vetoed_count": len(final_state["rejected_trades"]),
-        "decision_log": final_state["decision_log"],
-        "lessons_learned": final_state["lessons_learned"]
-    }
-    await db_conn.decision_logs.insert_one(audit_doc)
-
-    return {
-        "status": "completed",
-        "final_state": {
-            "candidates": final_state["candidates"],
-            "proposed_trades": final_state["proposed_trades"],
-            "approved_trades": final_state["approved_trades"],
-            "rejected_trades": final_state["rejected_trades"],
-            "executed_orders": final_state["executed_orders"],
-            "decision_log": final_state["decision_log"]
-        }
-    }
 
 @router.get("/decision-logs")
 async def get_decision_logs(
