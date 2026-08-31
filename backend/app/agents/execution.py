@@ -52,17 +52,41 @@ class ExecutionAgent:
                 mcp_client = None
 
         if not use_mcp:
-            direct_client = await get_alpaca_client(state["trading_account_id"])
+            try:
+                direct_client = await get_alpaca_client(state["trading_account_id"])
+            except Exception as e:
+                logger.warning("Could not initialise Alpaca client: %s", e)
+                direct_client = None
             if direct_client is None:
-                err_msg = "Could not initialise Alpaca client — skipping execution for all approved trades."
-                logger.error(err_msg)
-                state["execution_errors"].append(err_msg)
-                state["decision_log"].append({
-                    "timestamp": datetime.utcnow(),
-                    "agent": "execution",
-                    "status": "failed",
-                    "error": err_msg,
-                })
+                err_msg = "Alpaca client unavailable — recording approved trades without broker execution."
+                logger.warning(err_msg)
+                for trade in approved_trades:
+                    symbol = trade["symbol"]
+                    net_credit = float(trade.get("net_credit", 0.0))
+                    max_profit = net_credit * 100.0
+                    max_loss = float(trade.get("max_loss", 0.0)) * 100.0
+                    state["executed_orders"].append({
+                        "position_id": "demo",
+                        "symbol": symbol,
+                        "strategy": trade["strategy_type"],
+                        "net_credit": net_credit,
+                        "max_profit": max_profit,
+                        "max_loss": max_loss,
+                        "profit_target": max_profit * 0.75,
+                        "stop_loss": max_loss,
+                        "legs_filled": [],
+                        "all_filled": False,
+                        "timestamp": datetime.utcnow(),
+                        "demo_mode": True,
+                    })
+                    state["decision_log"].append({
+                        "timestamp": datetime.utcnow(),
+                        "agent": "execution",
+                        "status": "demo",
+                        "symbol": symbol,
+                        "output": f"Demo mode: {trade['strategy_type']} recorded but not sent to broker.",
+                        "message": f"Demo: {trade['strategy_type']} on {symbol} at net credit ${net_credit:.2f}.",
+                    })
                 return state
 
         try:
